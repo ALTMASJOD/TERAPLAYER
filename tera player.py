@@ -1,41 +1,31 @@
-from pyrogram import Client, filters
 import requests
-import re
+from pyrogram import Client, filters
 
-# Telegram Bot credentials
-api_id = 21075063  # apna api_id bhar
-api_hash = "c53c07f566f354f166277745eb6fb423"
-bot_token = "7381603599:AAG2zleJn5Ci3k64VmlGenCfCqn-0itNBT0"
+# Bot Setup
+app = Client("my_bot", api_id=21075063, api_hash="c53c07f566f354f166277745eb6fb423", bot_token="7381603599:AAG2zleJn5Ci3k64VmlGenCfCqn-0itNBT0")
 
-app = Client("terabox_downloader_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
+# Handle the TeraFileShare link
+@app.on_message(filters.regex(r"https://terafileshare.com/s/"))
+async def download_video(client, message):
+    link = message.text.strip()  # Clean the message and get the link
+    unique_id = link.split('/')[-1]  # Extract the unique file ID from the link
+    
+    # Now use the unique_id to generate the download URL
+    download_url = f"https://terafileshare.com/d/{unique_id}"
 
-def get_direct_link(terabox_url):
-    # Yeh function terabox URL se direct downloadable link nikaalega
-    api = "https://api.tbxdrive.xyz/info?link=" + terabox_url
-    response = requests.get(api)
-    
-    if response.status_code == 200:
-        data = response.json()
-        if data.get("status") == True:
-            return data['data']['download_url']
-    return None
+    try:
+        # Send GET request to download the video
+        response = requests.get(download_url)
+        
+        if response.status_code == 200:
+            video_data = response.content  # Get the video data
+            
+            # Send video back to the user
+            await message.reply_video(video_data)
+        else:
+            await message.reply_text("Sorry, video download failed.")
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
 
-@app.on_message(filters.private & filters.text)
-async def terabox_handler(client, message):
-    url = message.text.strip()
-    
-    if "terabox.com" not in url and "1024tera.com" not in url:
-        await message.reply_text("❌ Bhai sirf Terabox ka link bhej!")
-        return
-    
-    msg = await message.reply_text("⏳ Link process ho raha hai... ruk ja bhai!")
-    
-    direct_link = get_direct_link(url)
-    
-    if direct_link:
-        await msg.edit("✅ Link mil gaya! Ab bhej raha hoon...")
-        await client.send_video(chat_id=message.chat.id, video=direct_link, caption="Terabox se direct!")
-    else:
-        await msg.edit("❌ Bhai link nahi nikal paya. Shayad galat link hai ya API down hai.")
-
+# Start the bot
 app.run()
